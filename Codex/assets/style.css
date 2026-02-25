@@ -1,0 +1,38 @@
+:root {
+  --bg: #f7f3df;
+  --panel: #fffdf6;
+  --ink: #1f2430;
+  --brand: #dbc563;
+  --brand-strong: #c6ab39;
+  --accent: #2e5b87;
+  --edge: #e7dfbe;
+}
+
+body {
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 400px at 100% -10%, #f2ead0 0, transparent 70%),
+    radial-gradient(900px 420px at -10% 10%, #efe5c4 0, transparent 70%),
+    var(--bg) !important;
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+.w3-khaki {
+  background-color: var(--brand) !important;
+  color: #1d1d1d !important;
+}
+
+.w3-button.w3-khaki:hover {
+  background-color: var(--brand-strong) !important;
+}
+
+.w3-card,
+.w3-container {
+  border: 1px solid var(--edge);
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px rgba(57, 58, 61, 0.08);
+}
+
+a {
+  color: var(--accent);
+}

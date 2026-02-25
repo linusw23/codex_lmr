@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Liny's Movie Recommender - Sign Up</title>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+		<link rel="stylesheet" href="https://www.w3schools.com/lib/w3-theme-black.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.3.0/css/font-awesome.min.css">
+		<script src="https://kit.fontawesome.com/b7d390d567.js" crossorigin="anonymous"></script>
+		<link rel="stylesheet" href="path/to/font-awesome/css/font-awesome.min.css">
+		<link rel="stylesheet" href="/assets/style.css">
+		<style>
+body {
+	background-color: #f0e68c; /* Use the blue-grey color code */
+	margin: 0; /* Remove default margin */
+	padding: 0; /* Remove default padding */
+	}
+
+.w3-card, .w3-container {
+	background-color: #fff; /* White background for containers */
+	border-radius: 5px; /* Add rounded corners to containers */
+	padding: 20px; /* Add some padding for better spacing */
+	}
+	.error-text {
+            color: red;
+        }
+		</style>
+	</head>
+
+	<body>
+
+	<!-- Sidebar/menu -->
+		<nav class="w3-sidebar w3-white w3-animate-left" style="z-index:3;width:300px; display: none;" id="mySidebar">
+  			<div class="w3-container w3-row" style="position: relative; padding-top: 10px;">
+    				<div class="w3-col s8 w3-bar" style="padding-top: 10px;">
+    				    <form method="post" action=".">
+					        <button class="w3-button w3-khaki" name="action" value="log in">Log In</button><button class="w3-button w3-khaki" name="action" value="sign up">Sign Up</button>
+    				    </form>
+    				</div>
+    				<div class="w3-col s4" style="text-align: right; padding-top: 10px;">
+      					<button style="width: 30px; height: 30px; padding: 0; margin: 0;" name="action" class="w3-button w3-white w3-hover-grey" onclick="w3_close()">
+        					<i class="fa fa-remove" style="font-size: 24px;"></i>
+      					</button>
+    				</div>
+  			</div>
+  			<hr>
+  				<div class="w3-bar-block">
+					<div class="w3-bar-item" style="display: flex;">
+    						<input onkeyup="if(event.keyCode===13){{submit.click()}}" style="width: 82%; border: 1px solid #f0e68c;" type="text" class="w3-bar-item" placeholder="Film Search..." name="search">
+						<form method="post" action=".">
+						<button id="submit" style="width: 18%" type="submit" name="action" class="w3-bar-item w3-khaki w3-hover-white" value="Film Search">
+        						<i class="fa fa-search"></i>
+						</button>
+						</form>
+						<div style="display: flex; justify-content: center; align-items: center;">
+    						</div>
+					</div>
+					    <form method="post" action=".">
+    					<button class="w3-bar-item w3-button w3-padding w3-khaki" id="submit" name="action" value="home"><i class="fa fa-home fa-fw"></i>  Home</button>
+    					</form>
+  				</div>
+			</div>
+		</nav>
+
+<!-- !PAGE CONTENT! -->
+<div class="w3-main" style="margin-left:0px;margin-top:0px;">
+
+    <!-- Header -->
+    <header class="w3-container w3-khaki w3-padding" id="myHeader">
+        <button class="w3-button w3-khaki w3-xlarge" onclick="toggleSidebar()">☰</button>
+        <div class="w3-center">
+            <h4>Finding you the film to suit your needs since 2022</h4>
+            <h1 class="w3-xxxlarge w3-animate-bottom">Liny's Movie Recommender</h1>
+            <div class="w3-padding-8">
+            </div>
+        </div>
+    </header>
+
+    <div class="w3-row-padding w3-center w3-margin-top">
+            <!-- Container for Sign Up Form -->
+            <div class="w3-card w3-container" style="margin: 10px; min-height: 28vh;">
+                <h2><b>Sign Up</b></h2><br>
+                <form method="post" action="/createUser">
+                    <input type="text" class="w3-input" placeholder="Username" name="user">
+                    <input type="password" class="w3-input" placeholder="Password" name="password">
+                    <input type="text" class="w3-input" placeholder="Email (optional)" name="email">
+		    <select class="w3-select w3-margin-bottom" name="country">
+                        <option value="AU">Australia (AU)</option>
+                        <option value="GB">United Kingdom (GB)</option>
+                        <option value="SA">South Africa (SA)</option>
+                    </select>
+                    <button type="submit" class="w3-button w3-khaki w3-hover-white" name="action" value="Create account">Sign Up</button>
+                </form>
+        </div>
+    </div>
+    <br>
+
+    <!-- Footer -->
+    <footer class="w3-container w3-theme-white w3-padding-16">
+        <div style="font-size: 20px; padding:2vw 0.5vw display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+            <i class="fa fa-facebook-official w3-hover-opacity"></i>
+            <i class="fa fa-instagram w3-hover-opacity"></i>
+            <i class="fa fa-twitter w3-hover-opacity"></i>
+            <i class="fa fa-linkedin w3-hover-opacity"></i>
+            <i class="fa fa-envelope w3-hover-opacity"></i>
+        </div>
+        <p style="font-size: 1vw display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">Powered by <a href="https://www.w3schools.com/w3css/default.asp" target="_blank">w3.css</a>, <a href="https://www.imdb.com/" target="_blank">IMDB</a>, <a href="https://www.themoviedb.org/" target="_blank">TMDb</a> and <a href="https://www.justwatch.com/" target="_blank">JustWatch</a>.</p>
+    </footer>
+
+    <!-- End page content -->
+</div>
+
+		<!-- Script for Sidebar, Tabs, Accordions, Progress bars and slideshows -->
+		<script>
+		// Side navigation
+		function w3_close() {
+  			document.getElementById("mySidebar").style.display = "none";
+			}
+
+		function toggleSidebar() {
+  			var sidebar = document.getElementById("mySidebar");
+  			var overlay = document.getElementById("myOverlay");
+  			if (sidebar.style.display === "block") {
+      				sidebar.style.display = "none";
+      				overlay.style.display = "none"; // Set overlay display to "none"
+  				} else {
+      					sidebar.style.display = "block";
+      					overlay.style.display = "block"; // Set overlay display to "block"
+  				}
+			}
+
+			// Tabs
+		function openCity(evt, cityName) {
+  			var i;
+  			var x = document.getElementsByClassName("city");
+  			for (i = 0; i < x.length; i++) {
+    				x[i].style.display = "none";
+  				}
+  			var activebtn = document.getElementsByClassName("testbtn");
+  			for (i = 0; i < x.length; i++) {
+    				activebtn[i].className = activebtn[i].className.replace(" w3-dark-grey", "");
+  				}
+  			document.getElementById(cityName).style.display = "block";
+  			evt.currentTarget.className += " w3-dark-grey";
+			}
+
+		var mybtn = document.getElementsByClassName("testbtn")[0];
+		mybtn.click();
+
+		// Accordions
+		function myAccFunc(id) {
+  			var x = document.getElementById(id);
+  			if (x.className.indexOf("w3-show") == -1) {
+    				x.className += " w3-show";
+  				} else {
+    				x.className = x.className.replace(" w3-show", "");
+  					}
+				}
+
+		// Slideshows
+		var slideIndex = 1;
+
+		function plusDivs(n) {
+  			slideIndex = slideIndex + n;
+  			showDivs(slideIndex);
+			}
+
+		function showDivs(n) {
+  			var x = document.getElementsByClassName("mySlides");
+  			if (n > x.length) {slideIndex = 1}
+  			if (n < 1) {slideIndex = x.length} ;
+  			for (i = 0; i < x.length; i++) {
+    				x[i].style.display = "none";
+  				}
+  			x[slideIndex-1].style.display = "block";
+			}
+
+		showDivs(1);
+
+		// Progress Bars
+		function move() {
+  			var elem = document.getElementById("myBar");
+  			var width = 5;
+  			var id = setInterval(frame, 10);
+  			function frame() {
+    				if (width == 100) {
+      					clearInterval(id);
+    					} else {
+      					width++;
+      					elem.style.width = width + '%';
+      					elem.innerHTML = width * 1  + '%';
+    					}
+  				}
+			}
+		</script>
+
+	</body>
+</html>
