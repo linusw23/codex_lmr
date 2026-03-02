@@ -167,36 +167,41 @@ def login():
     # Reads in the account details file. Again saved as csv in PythonAnywhere.
     # accountDetails = pd.read_csv("accountDetails.csv")
     user_file = pd.read_csv("accountDetails.csv")
-    user_file.index = user_file['User'].str.lower()
+    user_file['user_lower'] = user_file['User'].astype(str).str.lower()
 
     if request.method == "POST":
         # If they want to set up a new user takes them to the new user screen.
-        if request.form["action"] == "New User":
+        action = request.form.get("action", "")
+
+        if action == "New User":
             return redirect('/createUser')
 
         # If they want to search for a film to rate (or just for the details)
-        if request.form['action'] == 'Film Search':
+        if action == 'Film Search':
             if request.form['search'] != "":
                 session['search_term'] = request.form['search']
                 session.modified = True
                 return redirect('/searchResults')
 
         # If they click log in...
-        elif request.form["action"] == "Log in":
+        elif action == "Log in":
 
             username = request.form["user"]
+            matching_users = user_file[user_file['user_lower'] == username.lower()]
+
             # Checks if the user is in the database.
-            # if accountDetails['User'].eq(request.form["user"]).any():
-            if username.lower() in user_file.index:
+            if not matching_users.empty:
+                # If duplicates exist (e.g. case variants), prioritize exact-case
+                # match when available; otherwise use first.
+                exact_case = matching_users[matching_users['User'] == username]
+                user_row = exact_case.iloc[0] if not exact_case.empty else matching_users.iloc[0]
 
                 # Checks the password listed matches the password given sends
                 # the user to the menu.
-                if user_file.loc[username.lower(), 'Password'] == request.form["password"]:
+                if str(user_row['Password']) == request.form["password"]:
                     session['logged_in'] = True
-                    session["user"] = user_file.loc[username.lower(), 'User']
-                    session["country"] = user_file.loc[
-                        username.lower(),
-                        'Country']
+                    session["user"] = user_row['User']
+                    session["country"] = user_row['Country']
                     session['recCount'] = 0
                     session.modified = True
                     return redirect('/menu')
@@ -239,7 +244,7 @@ def createUser():
 
             # If they entered a user who is already in the database,
             # lets them know.
-            if accountDetails['User'].eq(request.form["user"]).any():
+            if accountDetails['User'].astype(str).str.lower().eq(request.form["user"].lower()).any():
                 f = open('../HTML/lw07_sign_up_email_or_user_taken.txt', 'r')
                 page = f.read()
                 f.close()
@@ -282,9 +287,9 @@ def createUser():
                 'Password': request.form['password'],
                 'Country': request.form['country'],
                 'Email': request.form['email']}
-            accountDetails = accountDetails.append(
-                newUser,
-                ignore_index = True)
+            accountDetails = pd.concat(
+                [accountDetails, pd.DataFrame([newUser])],
+                ignore_index=True)
             accountDetails.to_csv("accountDetails.csv", index=False)
 
             # Takes them to the main menu.
@@ -316,7 +321,7 @@ def menu():
     '''The home page once the user has logged in. Expands on the non-logged in
     home page by being more personalised'''
 
-    if session['logged_in'] == False:
+    if session.get('logged_in') == False:
         return redirect('/')
 
     # Pulling the movieRatingsList from the saved csv file.
