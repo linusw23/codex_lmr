@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 
 def build_genre_ratings_df(df, user_list, spider=True):
     out_df = pd.DataFrame()
+    user_start = df.columns.get_loc('NoUserInput') + 1
+    numeric_ratings = df.iloc[:, user_start:].apply(pd.to_numeric, errors='coerce')
 
     if spider:
         genre_list = ['Comedy', 'Drama', 'Action', 'Crime', 'Adventure', 'Horror']
@@ -17,18 +19,20 @@ def build_genre_ratings_df(df, user_list, spider=True):
 
     out_df['user'] = ['average']
     for genre in genre_list:
-        out_df[genre] = [np.nanmean(df[
+        genre_mask = (
             ((df['genre1'] == genre) | (df['genre2'] == genre) | (df['genre3'] == genre)) &
-            (df['NoUserInput'] == False)].iloc[:, 8:])]
+            (df['NoUserInput'] == False)
+        )
+        out_df[genre] = [np.nanmean(numeric_ratings.loc[genre_mask].to_numpy())]
 
     for user in user_list:
         user_scores = [user]
         for genre in genre_list:
             user_scores.append(
-                df[
+                pd.to_numeric(df[
                     ((df['genre1'] == genre) | (df['genre2'] == genre) | (df['genre3'] == genre)) &
                     (df['NoUserInput'] == False)
-                ][user].mean()
+                ][user], errors='coerce').mean()
             )
         out_df.loc[len(out_df)] = user_scores
 
@@ -77,7 +81,10 @@ def top_5_genres(df, user):
 
 
 def most_sim_user(df, user):
-    user_df = df[df[user].notnull()].iloc[:, 8:]
+    user_start = df.columns.get_loc('NoUserInput') + 1
+    user_df = df[df[user].notnull()].iloc[:, user_start:].copy()
+    user_df = user_df.apply(pd.to_numeric, errors="coerce")
+
     other_users = list(user_df.columns)
     other_users.remove(user)
 
@@ -85,12 +92,12 @@ def most_sim_user(df, user):
     closest = None
 
     for other in other_users:
-        shared_df = user_df[user_df[other].notnull()][[user, other]]
+        shared_df = user_df[user_df[other].notnull()][[user, other]].dropna().copy()
         if len(shared_df) > 0:
-            shared_df['diff_sq'] = shared_df.apply(lambda row: (row[user] - row[other]) ** 2, axis=1)
+            shared_df['diff_sq'] = (shared_df[user] - shared_df[other]) ** 2
             msd = shared_df['diff_sq'].mean()
             if msd < min_dist:
                 min_dist = msd
                 closest = other
 
-    return closest
+    return closest if closest else "No close match yet"
