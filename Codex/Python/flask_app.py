@@ -675,7 +675,7 @@ def menu():
             movieRatingsList,
             [user,ideal_partner],
             True),
-            'charts')
+            '../Python/static')
 
         # Creating the HTML for the bottom 'personalised' half of the page.
         personalised_str = f'''<div class="w3-row-padding w3-center w3-margin-top">

@@ -1,4 +1,5 @@
 from math import pi
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -70,7 +71,9 @@ def genre_spider_chart(data, save_loc):
         ax.plot(angles, values, linewidth=2, linestyle='solid', label=data.loc[2, 'user'], color='#607D8B')
 
     plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=data.shape[0], fontsize=14)
-    plt.savefig(save_loc + '/spider_chart.png', dpi=500, bbox_inches='tight')
+    output_dir = Path(save_loc)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    plt.savefig(str(output_dir / 'spider_chart.png'), dpi=500, bbox_inches='tight')
     plt.close()
 
 
