@@ -1020,7 +1020,7 @@ def filmDetails():
                 # Read in the projected recommendation list, set the user's
                 # pred score to NaN - so they don't get recommended the film.
                 projRecList = pd.read_csv("pred_scores.csv")
-                projRecList.at[projRecList['tconst'] == session['tconst'], session['user']] = np.nan
+                projRecList.loc[projRecList['tconst'] == session['tconst'], session['user']] = np.nan
                 projRecList.to_csv('pred_scores.csv', index=False)
 
                 # Update the details of the film.
@@ -1243,7 +1243,7 @@ def newRateMostVoted():
                 movieRatingsList.to_csv('movieRatingsList.csv', index=True)
 
                 projRecList = pd.read_csv("pred_scores.csv")
-                projRecList.at[projRecList['tconst'] == session['tconst'], session['user']] = np.nan
+                projRecList.loc[projRecList['tconst'] == session['tconst'], session['user']] = np.nan
                 projRecList.to_csv('pred_scores.csv', index=False)
 
             else:
@@ -1336,7 +1336,7 @@ def newRateMostVotedNew():
                 movieRatingsList.to_csv('movieRatingsList.csv', index=True)
 
                 projRecList = pd.read_csv("pred_scores.csv")
-                projRecList.at[projRecList['tconst'] == session['tconst'], session['user']] = np.nan
+                projRecList.loc[projRecList['tconst'] == session['tconst'], session['user']] = np.nan
                 projRecList.to_csv('pred_scores.csv', index=False)
 
 
