@@ -1,6 +1,8 @@
 from flask import Flask, request, session, redirect, send_from_directory
 from pathlib import Path
 import os
+import shutil
+from db_storage import install_bootstrap, read_table_for_csv, write_table_for_csv
 import pandas as pd
 import numpy as np
 from fuzzywuzzy import process
@@ -16,15 +18,52 @@ import re
 
 # Setting up app paths and runtime config.
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / 'Other Files'
+DEFAULT_DATA_DIR = BASE_DIR / 'Other Files'
+DATA_DIR = Path(os.getenv('DATA_DIR', str(DEFAULT_DATA_DIR)))
 HTML_DIR = BASE_DIR / 'HTML'
 ASSETS_DIR = BASE_DIR / 'assets'
 
-# Preserve legacy relative CSV reads/writes used throughout the app.
-os.chdir(DATA_DIR)
+if DATA_DIR != DEFAULT_DATA_DIR and not (DATA_DIR / 'movieRatingsList.csv').exists():
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    for fname in ['movieRatingsList.csv', 'pred_scores.csv', 'fp_pred_scores.csv', 'accountDetails.csv']:
+        src = DEFAULT_DATA_DIR / fname
+        dst = DATA_DIR / fname
+        if src.exists() and not dst.exists():
+            shutil.copy2(src, dst)
 
 app = Flask(__name__, template_folder='templates')
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'dev-only-change-me')
+
+# Route legacy CSV access to the database layer.
+USE_DATABASE = os.getenv("USE_DATABASE", "1") == "1"
+if USE_DATABASE:
+    install_bootstrap()
+    _pd_read_csv = pd.read_csv
+    _pd_to_csv = pd.DataFrame.to_csv
+    _mapped_csv = {"accountDetails.csv", "movieRatingsList.csv", "pred_scores.csv", "fp_pred_scores.csv"}
+
+    def _csv_name(path_or_buf):
+        if isinstance(path_or_buf, Path):
+            return path_or_buf.name
+        if isinstance(path_or_buf, str):
+            return Path(path_or_buf).name
+        return None
+
+    def _db_read_csv(path_or_buf, *args, **kwargs):
+        name = _csv_name(path_or_buf)
+        if name in _mapped_csv:
+            return read_table_for_csv(name, index_col=kwargs.get("index_col"))
+        return _pd_read_csv(path_or_buf, *args, **kwargs)
+
+    def _db_to_csv(self, path_or_buf=None, *args, **kwargs):
+        name = _csv_name(path_or_buf)
+        if name in _mapped_csv:
+            write_table_for_csv(name, self.copy(), index=kwargs.get("index", True))
+            return None
+        return _pd_to_csv(self, path_or_buf, *args, **kwargs)
+
+    pd.read_csv = _db_read_csv
+    pd.DataFrame.to_csv = _db_to_csv
 
 
 @app.route('/assets/<path:filename>')
@@ -384,12 +423,13 @@ def menu():
         # if they want to enter a rating
         if request.form["action"] == "enter rating":
             # Make sure the rating is above 0 and equal to or below 10
-            if (float(request.form["amountRange"]) > 0) and (float(request.form["amountRange"]) <= 10):
+            rating_value = float(request.form["amountRange"])
+            if (rating_value > 0) and (rating_value <= 10):
                 # Change the value in the movie ratings list to the rating given
                 # by the user
                 movieRatingsList.at[
                     userProjRecList.index[session['recCount']],
-                    user] = request.form["amountRange"]
+                    user] = rating_value
 
                 # Make sure that the NoUserInput field is set to False (because
                 # a user has definitely now rated the film). On the home screen
@@ -651,7 +691,7 @@ def menu():
         fav_year = fav_details.loc['startYear']
         fav_photo = filmPhoto(fav_name, fav_year)
         fav_rate = fav_details.loc[user]
-        fav_avg = fav_details[11:].mean()
+        fav_avg = pd.to_numeric(fav_details[11:], errors='coerce').mean()
 
         # Finding the user's least favourite film
         hate_details = movieRatingsList.sort_values(
@@ -662,7 +702,7 @@ def menu():
         hate_year = hate_details.loc['startYear']
         hate_photo = filmPhoto(hate_name, hate_year)
         hate_rate = hate_details.loc[user]
-        hate_avg = hate_details[11:].mean()
+        hate_avg = pd.to_numeric(hate_details[11:], errors='coerce').mean()
 
         # Finding the user that is most similar
         ideal_partner = most_sim_user(movieRatingsList, user)
@@ -993,7 +1033,7 @@ def filmDetails():
 
     # Getting the LMR rating average, if no one has rated the film, don't put
     # the rating.
-    film_average = film_detail[10:].mean()
+    film_average = pd.to_numeric(film_detail[10:], errors='coerce').mean()
     film_average_str = ''
     if not np.isnan(film_average):
         film_average_str = f'''&emsp;LMR Average: <b>{film_average:.1f}</b>'''
@@ -1007,13 +1047,14 @@ def filmDetails():
         if request.form["action"] == "enter rating":
 
             # Make sure the rating is above 0 and less than or equal to 10
-            if (float(request.form["amountRange"]) > 0) and (float(request.form["amountRange"]) <= 10):
+            rating_value = float(request.form["amountRange"])
+            if (rating_value > 0) and (rating_value <= 10):
 
                 # Change the users rating in the movie ratings list and set
                 # nouserinput to False (a user has now rated it).
                 movieRatingsList.at[
                     session['tconst'],
-                    session['user']] = request.form["amountRange"]
+                    session['user']] = rating_value
                 movieRatingsList.at[session['tconst'], 'NoUserInput'] = False
                 movieRatingsList.to_csv('movieRatingsList.csv', index=True)
 
@@ -1033,7 +1074,7 @@ def filmDetails():
                 except: film_photo = ''
                 film_genres = ' • '.join(film_detail[6:9].dropna().astype(str))
 
-                film_average = film_detail[10:].mean()
+                film_average = pd.to_numeric(film_detail[10:], errors='coerce').mean()
                 film_average_str = ''
                 if not np.isnan(film_average):
                     film_average_str = f'''&emsp;LMR Average: <b>{film_average:.1f}</b>'''
@@ -1237,8 +1278,9 @@ def newRateMostVoted():
 
     if request.method == "POST":
         if request.form["action"] == "enter rating":
-            if float(request.form["amountRange"]) > 0 and float(request.form["amountRange"]) <= 10:
-                movieRatingsList.at[session['tconst'], session['user']] = request.form["amountRange"]
+            rating_value = float(request.form["amountRange"])
+            if rating_value > 0 and rating_value <= 10:
+                movieRatingsList.at[session['tconst'], session['user']] = rating_value
                 movieRatingsList.at[session['tconst'], 'NoUserInput'] = False
                 movieRatingsList.to_csv('movieRatingsList.csv', index=True)
 
@@ -1330,8 +1372,9 @@ def newRateMostVotedNew():
 
     if request.method == "POST":
         if request.form["action"] == "enter rating":
-            if float(request.form["amountRange"]) > 0 and float(request.form["amountRange"]) <= 10:
-                movieRatingsList.at[session['tconst'], session['user']] = request.form["amountRange"]
+            rating_value = float(request.form["amountRange"])
+            if rating_value > 0 and rating_value <= 10:
+                movieRatingsList.at[session['tconst'], session['user']] = rating_value
                 movieRatingsList.at[session['tconst'], 'NoUserInput'] = False
                 movieRatingsList.to_csv('movieRatingsList.csv', index=True)
 
@@ -1450,8 +1493,9 @@ def newFilmFilterFinder():
     if request.method == "POST":
 
         if request.form["action"] == "enter rating":
-            if float(request.form["amountRange"]) > 0 and float(request.form["amountRange"]) <= 10:
-                movieRatingsList.at[film_tconst, session['user']] = request.form["amountRange"]
+            rating_value = float(request.form["amountRange"])
+            if rating_value > 0 and rating_value <= 10:
+                movieRatingsList.at[film_tconst, session['user']] = rating_value
                 movieRatingsList.at[film_tconst, 'NoUserInput'] = False
                 movieRatingsList.to_csv('movieRatingsList.csv', index=True)
 
@@ -1693,8 +1737,9 @@ def feelingPretentious():
     if request.method == "POST":
 
         if request.form["action"] == "enter rating":
-            if float(request.form["amountRange"]) > 0 and float(request.form["amountRange"]) <= 10:
-                movieRatingsList.at[film_tconst, session['user']] = request.form["amountRange"]
+            rating_value = float(request.form["amountRange"])
+            if rating_value > 0 and rating_value <= 10:
+                movieRatingsList.at[film_tconst, session['user']] = rating_value
                 movieRatingsList.at[film_tconst, 'NoUserInput'] = False
                 movieRatingsList.to_csv('movieRatingsList.csv', index=True)
 

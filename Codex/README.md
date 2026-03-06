@@ -7,6 +7,7 @@ This folder is an upgraded fork of your `Original` project, focused on:
 - automated nightly refresh (catalog + predictions),
 - deployability outside PythonAnywhere (Docker/Gunicorn),
 - quick global UI refresh via shared stylesheet.
+- database-backed storage for accounts/films/ratings.
 
 ## What Changed
 
@@ -15,6 +16,7 @@ This folder is an upgraded fork of your `Original` project, focused on:
 - Added portable project-root path handling.
 - Added `/assets/<path>` route.
 - Secret key now comes from `FLASK_SECRET_KEY`.
+- Added database bridge so legacy CSV reads/writes map to DB tables.
 
 2. `Python/filmRecommender.py`
 - Removed hardcoded TMDB key usage.
@@ -66,6 +68,16 @@ Best path from current state: **Render** (or **Railway**) using Docker.
 - Why: easy env var management, simple web service deploy, and scheduled jobs.
 - Web service command is already in `Dockerfile`.
 - Add `TMDB_API_KEY` and `FLASK_SECRET_KEY` in platform secrets.
+- Prefer external Postgres by setting `DATABASE_URL`.
+
+## Database Model
+
+App now supports this DB structure:
+- `accounts(UserID, User, Password, Country, Email)`
+- `films(tconst, averageRating, numVotes, titleType, primaryTitle, startYear, runtimeMinutes, genre1, genre2, genre3, NoUserInput)`
+- `ratings(tconst, RatingType, UserID, Rating)` with `RatingType` in `User`, `Pred`, `FP Pred`.
+
+On first run, DB bootstraps from existing CSV files automatically.
 
 ## Next Upgrade Steps (Recommended)
 
