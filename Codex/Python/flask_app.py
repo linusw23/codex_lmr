@@ -2,7 +2,7 @@ from flask import Flask, request, session, redirect, send_from_directory
 from pathlib import Path
 import os
 import shutil
-from db_storage import install_bootstrap, read_table_for_csv, write_table_for_csv
+from db_storage import install_bootstrap, read_table_for_csv, write_table_for_csv, database_ready
 import pandas as pd
 import numpy as np
 from fuzzywuzzy import process
@@ -36,8 +36,14 @@ app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'dev-only-change-me')
 
 # Route legacy CSV access to the database layer.
 USE_DATABASE = os.getenv("USE_DATABASE", "1") == "1"
+AUTO_BOOTSTRAP_DB = os.getenv("AUTO_BOOTSTRAP_DB", "0") == "1"
 if USE_DATABASE:
-    install_bootstrap()
+    install_bootstrap(auto_bootstrap=AUTO_BOOTSTRAP_DB)
+    if not database_ready():
+        print("DB not ready; falling back to CSV mode for this run.")
+        USE_DATABASE = False
+
+if USE_DATABASE:
     _pd_read_csv = pd.read_csv
     _pd_to_csv = pd.DataFrame.to_csv
     _mapped_csv = {"accountDetails.csv", "movieRatingsList.csv", "pred_scores.csv", "fp_pred_scores.csv"}

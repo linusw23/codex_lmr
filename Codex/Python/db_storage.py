@@ -68,6 +68,12 @@ def _empty_table(table_name: str) -> bool:
         return count == 0
 
 
+def database_ready() -> bool:
+    if not _exists("accounts") or not _exists("films"):
+        return False
+    return (not _empty_table("accounts")) and (not _empty_table("films"))
+
+
 def init_schema() -> None:
     with ENGINE.begin() as conn:
         conn.execute(
@@ -222,31 +228,36 @@ def bootstrap_from_csv(data_dir: Path | None = None) -> None:
         conn.execute(text("DELETE FROM films"))
     pd.DataFrame(films).to_sql("films", ENGINE, if_exists="append", index=False)
 
-    def melt_ratings(df: pd.DataFrame, rating_type: str) -> pd.DataFrame:
-        user_cols = [c for c in df.columns if c != "tconst"]
-        if not user_cols:
-            return pd.DataFrame(columns=["tconst", "RatingType", "UserID", "Rating"])
-        long_df = df[["tconst"] + user_cols].melt(
-            id_vars="tconst",
-            var_name="User",
-            value_name="Rating",
-        )
-        long_df["Rating"] = pd.to_numeric(long_df["Rating"], errors="coerce")
-        long_df = long_df.dropna(subset=["Rating"])
-        if long_df.empty:
-            return pd.DataFrame(columns=["tconst", "RatingType", "UserID", "Rating"])
-        long_df["UserID"] = long_df["User"].map(user_map)
-        long_df["RatingType"] = rating_type
-        return long_df[["tconst", "RatingType", "UserID", "Rating"]]
-
-    user_ratings = melt_ratings(movies[["tconst"] + movie_users], "User") if movie_users else pd.DataFrame(columns=["tconst", "RatingType", "UserID", "Rating"])
-    pred_ratings = melt_ratings(pred, "Pred")
-    fp_ratings = melt_ratings(fp_pred, "FP Pred")
-    ratings = pd.concat([user_ratings, pred_ratings, fp_ratings], ignore_index=True)
     with ENGINE.begin() as conn:
         conn.execute(text("DELETE FROM ratings"))
-    if not ratings.empty:
-        ratings.to_sql("ratings", ENGINE, if_exists="append", index=False)
+
+    def append_by_user(df: pd.DataFrame, rating_type: str):
+        user_cols = [c for c in df.columns if c != "tconst"]
+        for user in user_cols:
+            uid = user_map.get(user)
+            if uid is None:
+                continue
+            tmp = df[["tconst", user]].copy()
+            tmp["Rating"] = pd.to_numeric(tmp[user], errors="coerce")
+            tmp = tmp.dropna(subset=["Rating"])
+            if tmp.empty:
+                continue
+            out = pd.DataFrame(
+                {
+                    "tconst": tmp["tconst"],
+                    "RatingType": rating_type,
+                    "UserID": uid,
+                    "Rating": tmp["Rating"],
+                }
+            )
+            out.to_sql("ratings", ENGINE, if_exists="append", index=False)
+
+    if movie_users:
+        append_by_user(movies[["tconst"] + movie_users], "User")
+    if "tconst" in pred.columns:
+        append_by_user(pred, "Pred")
+    if "tconst" in fp_pred.columns:
+        append_by_user(fp_pred, "FP Pred")
 
 
 def _accounts_df_for_app() -> pd.DataFrame:
@@ -400,7 +411,7 @@ def write_table_for_csv(file_name: str, df: pd.DataFrame, index: bool = True) ->
     raise ValueError(f"Unsupported table mapping: {file_name}")
 
 
-def install_bootstrap() -> None:
+def install_bootstrap(auto_bootstrap: bool = False) -> None:
     init_schema()
-    if _empty_table("films"):
+    if auto_bootstrap and _empty_table("films"):
         bootstrap_from_csv()
