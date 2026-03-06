@@ -38,9 +38,13 @@ app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'dev-only-change-me')
 USE_DATABASE = os.getenv("USE_DATABASE", "1") == "1"
 AUTO_BOOTSTRAP_DB = os.getenv("AUTO_BOOTSTRAP_DB", "0") == "1"
 if USE_DATABASE:
-    install_bootstrap(auto_bootstrap=AUTO_BOOTSTRAP_DB)
-    if not database_ready():
-        print("DB not ready; falling back to CSV mode for this run.")
+    try:
+        install_bootstrap(auto_bootstrap=AUTO_BOOTSTRAP_DB)
+        if not database_ready():
+            print("DB not ready; falling back to CSV mode for this run.")
+            USE_DATABASE = False
+    except Exception as ex:
+        print(f"DB init failed ({ex}); falling back to CSV mode for this run.")
         USE_DATABASE = False
 
 if USE_DATABASE:
