@@ -215,28 +215,49 @@ from requests.packages.urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 import json
 import os
+from functools import lru_cache
+from urllib.parse import quote
 
 TMDB_API_KEY = os.getenv("TMDB_API_KEY", "")
+TMDB_TIMEOUT = float(os.getenv("TMDB_TIMEOUT", "6"))
+
+
+def _request_json(url):
+    resp = requests.get(url, timeout=TMDB_TIMEOUT)
+    return json.loads(resp.content.decode('utf-8'))
+
+
+@lru_cache(maxsize=4096)
+def _first_movie_result(film_name, film_year):
+    film_search = quote(str(film_name))
+    url = (
+        "https://api.themoviedb.org/3/search/movie?api_key=" + TMDB_API_KEY
+        + "&language=en-AU&query=" + film_search
+        + "&page=1&include_adult=false&year=" + str(film_year)
+    )
+    data = _request_json(url)
+    results = data.get('results', [])
+    if not results:
+        return None
+    return results[0]
+
+
+@lru_cache(maxsize=128)
+def _provider_list(country):
+    url = (
+        "https://api.themoviedb.org/3/watch/providers/movie?api_key=" + TMDB_API_KEY
+        + "&language=en-" + country + "&watch_region=" + country
+    )
+    data = _request_json(url)
+    return data.get('results', [])
 
 def filmStreams(filmName, filmYear, country):
-
-    filmSearch = str.replace(filmName, " ", "%20")
-
-    URL = "https://api.themoviedb.org/3/search/movie?api_key=" + TMDB_API_KEY + "&language=en-AU&query=" + filmSearch + "&page=1&include_adult=false&year=" + str(filmYear)
-
-#     headers = {
-# 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36',
-# }
-    # page = requests.get(URL, headers=headers)
-    page = requests.get(URL)
-    # soup = BeautifulSoup(page.content, 'html.parser')
-    # soup = BeautifulSoup(page.content)
-    a = json.loads(page.content.decode('utf-8'))
-    id = a['results'][0]['id']
-
-    URL = "https://api.themoviedb.org/3/movie/" + str(id) + "/watch/providers?api_key=" + TMDB_API_KEY
-    page = requests.get(URL)
-    a = json.loads(page.content.decode('utf-8'))
+    first = _first_movie_result(filmName, filmYear)
+    if not first:
+        return []
+    movie_id = first['id']
+    url = "https://api.themoviedb.org/3/movie/" + str(movie_id) + "/watch/providers?api_key=" + TMDB_API_KEY
+    a = _request_json(url)
     streamList = []
     # if user == "Lily":
     #     print(a['results']['UK'])
@@ -253,40 +274,16 @@ def filmStreams(filmName, filmYear, country):
     return streamList
 
 def descFilm(filmName, filmYear):
-
-    filmSearch = str.replace(filmName, " ", "%20")
-
-    URL = "https://api.themoviedb.org/3/search/movie?api_key=" + TMDB_API_KEY + "&language=en-AU&query=" + filmSearch + "&page=1&include_adult=false&year=" + str(filmYear)
-
-#     headers = {
-# 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36',
-# }
-    # page = requests.get(URL, headers=headers)
-    page = requests.get(URL)
-    # soup = BeautifulSoup(page.content, 'html.parser')
-    # soup = BeautifulSoup(page.content)
-    a = json.loads(page.content.decode('utf-8'))
-    desc = a['results'][0]['overview']
-
-    return desc
+    first = _first_movie_result(filmName, filmYear)
+    if not first:
+        return ''
+    return first.get('overview', '')
 
 def filmPhoto(filmName, filmYear):
-
-    filmSearch = str.replace(filmName, " ", "%20")
-
-    URL = "https://api.themoviedb.org/3/search/movie?api_key=" + TMDB_API_KEY + "&language=en-AU&query=" + filmSearch + "&page=1&include_adult=false&year=" + str(filmYear)
-
-#     headers = {
-# 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36',
-# }
-    # page = requests.get(URL, headers=headers)
-    page = requests.get(URL)
-    # soup = BeautifulSoup(page.content, 'html.parser')
-    # soup = BeautifulSoup(page.content)
-    a = json.loads(page.content.decode('utf-8'))
-    photo = 'https://image.tmdb.org/t/p/w500' + a['results'][0]['poster_path']
-
-    return photo
+    first = _first_movie_result(filmName, filmYear)
+    if not first or not first.get('poster_path'):
+        return ''
+    return 'https://image.tmdb.org/t/p/w500' + first['poster_path']
 
 def mostSimilar(movieRatingsList, user):
 
@@ -318,9 +315,6 @@ def mostSimilar(movieRatingsList, user):
 def streamImagesLinks(streamer, country):
 
     if country == "AU":
-        URL = "https://api.themoviedb.org/3/watch/providers/movie?api_key=" + TMDB_API_KEY + "&language=en-AU&watch_region=AU"
-        page = requests.get(URL)
-
         linkDict = {'Netflix': 'https://www.netflix.com/',
             'Fetch TV': 'https://www.fetchtv.com.au/',
             'Amazon Prime Video': 'https://www.primevideo.com/',
@@ -382,17 +376,12 @@ def streamImagesLinks(streamer, country):
             'Netflix basic with Ads': 'https://www.netflix.com/',
             'Shudder Amazon Channel': 'https://www.primevideo.com/'}
 
-        a = json.loads(page.content.decode('utf-8'))
-
-        for s in a['results']:
+        for s in _provider_list("AU"):
             if s['provider_name'] == streamer and streamer in linkDict.keys():
                 image_str = "https://image.tmdb.org/t/p/original" + s['logo_path']
                 return (image_str, linkDict[streamer])
 
     elif country == "GB":
-        URL = "https://api.themoviedb.org/3/watch/providers/movie?api_key=" + TMDB_API_KEY + "&language=en-GB&watch_region=GB"
-        page = requests.get(URL)
-
         linkDict = {'Netflix': 'https://www.netflix.com/',
             'Amazon Prime Video': 'https://www.primevideo.com/',
             'Paramount+ Amazon Channel': 'https://www.primevideo.com/',
@@ -506,17 +495,12 @@ def streamImagesLinks(streamer, country):
             'Viaplay': 'https://viaplay.com/',
             'Netflix basic with Ads': 'https://www.netflix.com/'}
 
-        a = json.loads(page.content.decode('utf-8'))
-
-        for s in a['results']:
+        for s in _provider_list("GB"):
             if s['provider_name'] == streamer and streamer in linkDict.keys():
                 image_str = "https://image.tmdb.org/t/p/original" + s['logo_path']
                 return (image_str, linkDict[streamer])
 
     elif country == "SA":
-        URL = "https://api.themoviedb.org/3/watch/providers/movie?api_key=" + TMDB_API_KEY + "&language=en-SA&watch_region=SA"
-        page = requests.get(URL)
-
         linkDict = {'Netflix': 'https://www.netflix.com/',
             'OSN': 'https://www.osn.com/en-sa/home',
             'STARZPLAY': 'https://starzplay.com/',
@@ -631,9 +615,7 @@ def streamImagesLinks(streamer, country):
             'TOD': 'https://www.tod.tv/en/',
             'Takflix': 'https://takflix.com/en'}
 
-        a = json.loads(page.content.decode('utf-8'))
-
-        for s in a['results']:
+        for s in _provider_list("SA"):
             if s['provider_name'] == streamer and streamer in linkDict.keys():
                 image_str = "https://image.tmdb.org/t/p/original" + s['logo_path']
                 return (image_str, linkDict[streamer])

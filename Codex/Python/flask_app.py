@@ -720,12 +720,17 @@ def menu():
         # Finding the user's top 5 favourite genres
         top_5 = top_5_genres(movieRatingsList, user)
 
-        # Generating a spider chart of the user's genre profile
-        genre_spider_chart(build_genre_ratings_df(
-            movieRatingsList,
-            [user,ideal_partner],
-            True),
-            '../Python/static')
+        # Generating a spider chart of the user's genre profile.
+        # This is expensive, so only refresh periodically.
+        spider_path = BASE_DIR / 'Python' / 'static' / 'spider_chart.png'
+        should_refresh_chart = (not spider_path.exists()) or (
+            (datetime.datetime.now().timestamp() - spider_path.stat().st_mtime) > 1800
+        )
+        if should_refresh_chart:
+            genre_spider_chart(
+                build_genre_ratings_df(movieRatingsList, [user, ideal_partner], True),
+                '../Python/static'
+            )
 
         # Creating the HTML for the bottom 'personalised' half of the page.
         personalised_str = f'''<div class="w3-row-padding w3-center w3-margin-top">
@@ -780,27 +785,27 @@ def menu():
                                         <div class="w3-col" style="display: flex; flex-direction: column; align-items: center; width: 20%;">
                                             <i class="{genre_symbols[top_5.index[0]]}" style="font-size: 40px;"></i>
                                             <p style="font-size: 12px;"><b>{top_5.index[0]}</b></p>
-                                            <p><b>{top_5[0]:.1f}</b></p>
+                                            <p><b>{top_5.iloc[0]:.1f}</b></p>
                                         </div>
                                         <div class="w3-col" style="display: flex; flex-direction: column; align-items: center; width: 20%;">
                                             <i class="{genre_symbols[top_5.index[1]]}" style="font-size: 40px;"></i>
                                             <p style="font-size: 12px;"><b>{top_5.index[1]}</b></p>
-                                            <p><b>{top_5[1]:.1f}</b></p>
+                                            <p><b>{top_5.iloc[1]:.1f}</b></p>
                                         </div>
                                         <div class="w3-col" style="display: flex; flex-direction: column; align-items: center; width: 20%;">
                                             <i class="{genre_symbols[top_5.index[2]]}" style="font-size: 40px;"></i>
                                             <p style="font-size: 12px;"><b>{top_5.index[2]}</b></p>
-                                            <p><b>{top_5[2]:.1f}</b></p>
+                                            <p><b>{top_5.iloc[2]:.1f}</b></p>
                                         </div>
                                         <div class="w3-col" style="display: flex; flex-direction: column; align-items: center; width: 20%;">
                                             <i class="{genre_symbols[top_5.index[3]]}" style="font-size: 40px;"></i>
                                             <p style="font-size: 12px;"><b>{top_5.index[3]}</b></p>
-                                            <p><b>{top_5[3]:.1f}</b></p>
+                                            <p><b>{top_5.iloc[3]:.1f}</b></p>
                                         </div>
                                         <div class="w3-col" style="display: flex; flex-direction: column; align-items: center; width: 20%;">
                                             <i class="{genre_symbols[top_5.index[4]]}" style="font-size: 40px;"></i>
                                             <p style="font-size: 12px;"><b>{top_5.index[4]}</b></p>
-                                            <p><b>{top_5[4]:.1f}</b></p>
+                                            <p><b>{top_5.iloc[4]:.1f}</b></p>
                                         </div>
                                     </div>
                                 </div>

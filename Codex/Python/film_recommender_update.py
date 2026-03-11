@@ -24,7 +24,8 @@ def build_genre_ratings_df(df, user_list, spider=True):
             ((df['genre1'] == genre) | (df['genre2'] == genre) | (df['genre3'] == genre)) &
             (df['NoUserInput'] == False)
         )
-        out_df[genre] = [np.nanmean(numeric_ratings.loc[genre_mask].to_numpy())]
+        arr = numeric_ratings.loc[genre_mask].to_numpy()
+        out_df[genre] = [np.nanmean(arr) if arr.size else 0]
 
     for user in user_list:
         user_scores = [user]
@@ -73,7 +74,7 @@ def genre_spider_chart(data, save_loc):
     plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=data.shape[0], fontsize=14)
     output_dir = Path(save_loc)
     output_dir.mkdir(parents=True, exist_ok=True)
-    plt.savefig(str(output_dir / 'spider_chart.png'), dpi=500, bbox_inches='tight')
+    plt.savefig(str(output_dir / 'spider_chart.png'), dpi=180, bbox_inches='tight')
     plt.close()
 
 
