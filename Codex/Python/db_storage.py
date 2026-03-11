@@ -284,7 +284,7 @@ def _films_df_for_app() -> pd.DataFrame:
 def _pred_df_for_app(rating_type: str) -> pd.DataFrame:
     user_map = pd.read_sql('SELECT "UserID", "User" FROM accounts ORDER BY "UserID"', ENGINE)
     ratings = pd.read_sql(
-        'SELECT tconst, "UserID", "Rating" FROM ratings WHERE "RatingType"=:rt',
+        text('SELECT tconst, "UserID", "Rating" FROM ratings WHERE "RatingType"=:rt'),
         ENGINE,
         params={"rt": rating_type},
     )
