@@ -80,11 +80,11 @@ def init_schema() -> None:
             text(
                 """
                 CREATE TABLE IF NOT EXISTS accounts (
-                    UserID INTEGER PRIMARY KEY,
-                    User TEXT NOT NULL,
-                    Password TEXT,
-                    Country TEXT,
-                    Email TEXT
+                    "UserID" INTEGER PRIMARY KEY,
+                    "User" TEXT NOT NULL,
+                    "Password" TEXT,
+                    "Country" TEXT,
+                    "Email" TEXT
                 )
                 """
             )
@@ -94,16 +94,16 @@ def init_schema() -> None:
                 """
                 CREATE TABLE IF NOT EXISTS films (
                     tconst TEXT PRIMARY KEY,
-                    averageRating REAL,
-                    numVotes INTEGER,
-                    titleType TEXT,
-                    primaryTitle TEXT,
-                    startYear INTEGER,
-                    runtimeMinutes INTEGER,
+                    "averageRating" REAL,
+                    "numVotes" INTEGER,
+                    "titleType" TEXT,
+                    "primaryTitle" TEXT,
+                    "startYear" INTEGER,
+                    "runtimeMinutes" INTEGER,
                     genre1 TEXT,
                     genre2 TEXT,
                     genre3 TEXT,
-                    NoUserInput INTEGER
+                    "NoUserInput" INTEGER
                 )
                 """
             )
@@ -113,22 +113,22 @@ def init_schema() -> None:
                 """
                 CREATE TABLE IF NOT EXISTS ratings (
                     tconst TEXT NOT NULL,
-                    RatingType TEXT NOT NULL,
-                    UserID INTEGER NOT NULL,
-                    Rating REAL
+                    "RatingType" TEXT NOT NULL,
+                    "UserID" INTEGER NOT NULL,
+                    "Rating" REAL
                 )
                 """
             )
         )
         conn.execute(text("CREATE INDEX IF NOT EXISTS idx_ratings_t ON ratings(tconst)"))
         conn.execute(
-            text("CREATE INDEX IF NOT EXISTS idx_ratings_type_user ON ratings(RatingType, UserID)")
+            text('CREATE INDEX IF NOT EXISTS idx_ratings_type_user ON ratings("RatingType", "UserID")')
         )
 
 
 def _ensure_account_rows(users: list[str], defaults: dict[str, str] | None = None) -> dict[str, int]:
     defaults = defaults or {"Password": "1234", "Country": "AU", "Email": ""}
-    accounts = pd.read_sql("SELECT UserID, User FROM accounts ORDER BY UserID", ENGINE)
+    accounts = pd.read_sql('SELECT "UserID", "User" FROM accounts ORDER BY "UserID"', ENGINE)
     existing = {str(r["User"]): int(r["UserID"]) for _, r in accounts.iterrows()}
     next_id = (max(existing.values()) + 1) if existing else 1
 
@@ -262,7 +262,7 @@ def bootstrap_from_csv(data_dir: Path | None = None) -> None:
 
 def _accounts_df_for_app() -> pd.DataFrame:
     return pd.read_sql(
-        "SELECT User, Password, Country, Email FROM accounts ORDER BY UserID",
+        'SELECT "User", "Password", "Country", "Email" FROM accounts ORDER BY "UserID"',
         ENGINE,
     )
 
@@ -270,8 +270,8 @@ def _accounts_df_for_app() -> pd.DataFrame:
 def _films_df_for_app() -> pd.DataFrame:
     films = pd.read_sql("SELECT * FROM films", ENGINE)
     films["NoUserInput"] = films["NoUserInput"].fillna(1).astype(int).astype(bool)
-    user_map = pd.read_sql("SELECT UserID, User FROM accounts ORDER BY UserID", ENGINE)
-    ratings = pd.read_sql("SELECT tconst, UserID, Rating FROM ratings WHERE RatingType='User'", ENGINE)
+    user_map = pd.read_sql('SELECT "UserID", "User" FROM accounts ORDER BY "UserID"', ENGINE)
+    ratings = pd.read_sql('SELECT tconst, "UserID", "Rating" FROM ratings WHERE "RatingType"=\'User\'', ENGINE)
     if ratings.empty:
         return films
     ratings = ratings.merge(user_map, on="UserID", how="left")
@@ -282,9 +282,9 @@ def _films_df_for_app() -> pd.DataFrame:
 
 
 def _pred_df_for_app(rating_type: str) -> pd.DataFrame:
-    user_map = pd.read_sql("SELECT UserID, User FROM accounts ORDER BY UserID", ENGINE)
+    user_map = pd.read_sql('SELECT "UserID", "User" FROM accounts ORDER BY "UserID"', ENGINE)
     ratings = pd.read_sql(
-        "SELECT tconst, UserID, Rating FROM ratings WHERE RatingType=:rt",
+        'SELECT tconst, "UserID", "Rating" FROM ratings WHERE "RatingType"=:rt',
         ENGINE,
         params={"rt": rating_type},
     )
@@ -331,7 +331,7 @@ def write_table_for_csv(file_name: str, df: pd.DataFrame, index: bool = True) ->
     if file_name == FILE_ACCOUNT:
         in_df = df.copy().reset_index(drop=True)
         in_df = in_df[[c for c in ["User", "Password", "Country", "Email"] if c in in_df.columns]]
-        existing = pd.read_sql("SELECT UserID, User FROM accounts ORDER BY UserID", ENGINE)
+        existing = pd.read_sql('SELECT "UserID", "User" FROM accounts ORDER BY "UserID"', ENGINE)
         user_id_map = {str(r["User"]): int(r["UserID"]) for _, r in existing.iterrows()}
         next_id = (max(user_id_map.values()) + 1) if user_id_map else 1
 
@@ -368,7 +368,7 @@ def write_table_for_csv(file_name: str, df: pd.DataFrame, index: bool = True) ->
         user_cols = [c for c in in_df.columns if c not in FILM_COLS]
         user_map = _ensure_account_rows(user_cols)
         with ENGINE.begin() as conn:
-            conn.execute(text("DELETE FROM ratings WHERE RatingType='User'"))
+            conn.execute(text('DELETE FROM ratings WHERE "RatingType"=\'User\''))
         if user_cols:
             long_df = in_df[["tconst"] + user_cols].melt(
                 id_vars="tconst",
@@ -391,7 +391,7 @@ def write_table_for_csv(file_name: str, df: pd.DataFrame, index: bool = True) ->
         user_map = _ensure_account_rows(user_cols)
         rtype = "Pred" if file_name == FILE_PRED else "FP Pred"
         with ENGINE.begin() as conn:
-            conn.execute(text("DELETE FROM ratings WHERE RatingType=:rt"), {"rt": rtype})
+            conn.execute(text('DELETE FROM ratings WHERE "RatingType"=:rt'), {"rt": rtype})
         if user_cols:
             long_df = in_df[["tconst"] + user_cols].melt(
                 id_vars="tconst",
