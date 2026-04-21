@@ -1,5 +1,6 @@
 from flask import Flask, request, session, redirect, send_from_directory
 from pathlib import Path
+import builtins
 import os
 import shutil
 from db_storage import install_bootstrap, read_table_for_csv, write_table_for_csv, database_ready
@@ -34,6 +35,48 @@ if DATA_DIR != DEFAULT_DATA_DIR and not (DATA_DIR / 'movieRatingsList.csv').exis
 app = Flask(__name__, template_folder='templates')
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'dev-only-change-me')
 
+_LEGACY_CSV_NAMES = {"accountDetails.csv", "movieRatingsList.csv", "pred_scores.csv", "fp_pred_scores.csv"}
+_pd_read_csv = pd.read_csv
+_pd_to_csv = pd.DataFrame.to_csv
+_open = builtins.open
+
+
+def _csv_name(path_or_buf):
+    if isinstance(path_or_buf, Path):
+        return path_or_buf.name
+    if isinstance(path_or_buf, str):
+        return Path(path_or_buf).name
+    return None
+
+
+def _resolve_legacy_path(path_or_buf):
+    if isinstance(path_or_buf, Path):
+        path_obj = path_or_buf
+    elif isinstance(path_or_buf, str):
+        path_obj = Path(path_or_buf)
+    else:
+        return path_or_buf
+
+    if path_obj.is_absolute():
+        return path_obj
+
+    name = path_obj.name
+    if name in _LEGACY_CSV_NAMES:
+        return DATA_DIR / name
+
+    path_text = str(path_or_buf).replace("\\", "/")
+    if path_text.startswith("../HTML/"):
+        return HTML_DIR / name
+
+    return path_or_buf
+
+
+def _app_open(file, *args, **kwargs):
+    return _open(_resolve_legacy_path(file), *args, **kwargs)
+
+
+builtins.open = _app_open
+
 # Route legacy CSV access to the database layer.
 USE_DATABASE = os.getenv("USE_DATABASE", "1") == "1"
 AUTO_BOOTSTRAP_DB = os.getenv("AUTO_BOOTSTRAP_DB", "0") == "1"
@@ -48,32 +91,30 @@ if USE_DATABASE:
         USE_DATABASE = False
 
 if USE_DATABASE:
-    _pd_read_csv = pd.read_csv
-    _pd_to_csv = pd.DataFrame.to_csv
-    _mapped_csv = {"accountDetails.csv", "movieRatingsList.csv", "pred_scores.csv", "fp_pred_scores.csv"}
-
-    def _csv_name(path_or_buf):
-        if isinstance(path_or_buf, Path):
-            return path_or_buf.name
-        if isinstance(path_or_buf, str):
-            return Path(path_or_buf).name
-        return None
-
     def _db_read_csv(path_or_buf, *args, **kwargs):
         name = _csv_name(path_or_buf)
-        if name in _mapped_csv:
+        if name in _LEGACY_CSV_NAMES:
             return read_table_for_csv(name, index_col=kwargs.get("index_col"))
-        return _pd_read_csv(path_or_buf, *args, **kwargs)
+        return _pd_read_csv(_resolve_legacy_path(path_or_buf), *args, **kwargs)
 
     def _db_to_csv(self, path_or_buf=None, *args, **kwargs):
         name = _csv_name(path_or_buf)
-        if name in _mapped_csv:
+        if name in _LEGACY_CSV_NAMES:
             write_table_for_csv(name, self.copy(), index=kwargs.get("index", True))
             return None
-        return _pd_to_csv(self, path_or_buf, *args, **kwargs)
+        return _pd_to_csv(self, _resolve_legacy_path(path_or_buf), *args, **kwargs)
 
     pd.read_csv = _db_read_csv
     pd.DataFrame.to_csv = _db_to_csv
+else:
+    def _file_read_csv(path_or_buf, *args, **kwargs):
+        return _pd_read_csv(_resolve_legacy_path(path_or_buf), *args, **kwargs)
+
+    def _file_to_csv(self, path_or_buf=None, *args, **kwargs):
+        return _pd_to_csv(self, _resolve_legacy_path(path_or_buf), *args, **kwargs)
+
+    pd.read_csv = _file_read_csv
+    pd.DataFrame.to_csv = _file_to_csv
 
 
 @app.route('/assets/<path:filename>')
